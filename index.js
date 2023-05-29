@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -8,7 +9,23 @@ const port = process.env.PORT || 5000;
 // middleware
 app.use(cors());
 app.use(express.json());
+// creating a middleware
+const verifyJWT = (req, res, next)=>{
+  const authorization = req.headers.authorization /* checking for authorization */
+  if(!authorization){
+    return res.status(401).send({error: true, message: 'Unauthorized access'})
+  }
+  /* if token available bearer token */
+  const token = authorization.split(' ')[1]
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
+    if(err){
+      return res.status(401).send({error: true, message: 'Unauthorized access/invalid token'})
+    }
+    req.decoded = decoded
+    next()
+  })
 
+}
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.mznotex.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -24,12 +41,20 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    client.connect();
 
     const usersCollection = client.db("bistroDB").collection("users");
     const menuCollection = client.db("bistroDB").collection("menu");
     const reviewCollection = client.db("bistroDB").collection("reviews");
     const cartCollection = client.db("bistroDB").collection("carts");
+
+    // jwt
+    app.post('/jwt', (req,res)=>{
+      const user = req.body
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'})
+      res.send({token})
+    }) 
+ 
 
     // user collection apis
     app.get('/users', async (req, res) => {
@@ -74,12 +99,18 @@ async function run() {
     })
 
     // cart collection apis
-    app.get('/carts', async (req, res) => {
+    app.get('/carts',verifyJWT, async (req, res) => {
       const email = req.query.email;
       console.log(email)
       if(!email){
         res.send([])
       }
+      //so that ram sum cant see other users cart 
+      const decodedEmail = req.decoded.email
+      if(email !== decodedEmail){
+        return res.status(403).send({error: true, message: 'Forbidden access'})
+      }
+
       const query = {email: email};
       const result = await cartCollection.find(query).toArray();
       res.send(result);
