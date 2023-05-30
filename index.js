@@ -54,10 +54,13 @@ async function run() {
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'})
       res.send({token})
     }) 
- 
+
+    /* 
+    1. use jwt token: verifyJWT
+    */
 
     // user collection apis
-    app.get('/users', async (req, res) => {
+    app.get('/users',verifyJWT, async (req, res) => {
       const result = await usersCollection.find().toArray()
       res.send(result);
     })
@@ -73,6 +76,22 @@ async function run() {
       }
       const result = await usersCollection.insertOne(user);
       res.send(result);
+    })
+/* 
+security layer
+ verifyJWT
+ email same
+ check if admin
+*/
+    app.get('/users/admin/:email',verifyJWT, async(req,res)=>{
+      const email = req.params.email;
+      if(req.decoded.email !== email){
+        res.send({admin: false})
+      }
+      const query = {email: email}
+      const user = await usersCollection.findOne(query)
+      const result = {admin: user?.role === 'admin'}
+      res.send(result)
     })
 
     app.patch('/users/admin/:id', async (req, res) => {
