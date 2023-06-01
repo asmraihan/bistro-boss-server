@@ -9,6 +9,7 @@ const port = process.env.PORT || 5000;
 // middleware
 app.use(cors());
 app.use(express.json());
+
 // creating a middleware
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization /* checking for authorization */
@@ -21,6 +22,7 @@ const verifyJWT = (req, res, next) => {
     if (err) {
       return res.status(401).send({ error: true, message: 'Unauthorized access/invalid token' })
     }
+    // user info in decode
     req.decoded = decoded
     next()
   })
@@ -124,6 +126,13 @@ async function run() {
       const result = await menuCollection.find().toArray();
       res.send(result);
     })
+
+    app.post('/menu', verifyJWT, verifyAdmin, async (req, res) => {
+      const newItem = req.body;
+      const result = await menuCollection.insertOne(newItem)
+      res.send(result)
+    });
+
     // review apis
     app.get('/reviews', async (req, res) => {
       const result = await reviewCollection.find().toArray();
