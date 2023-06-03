@@ -205,6 +205,27 @@ async function run() {
       res.send({ insertResult, deleteResult })
     })
 
+    app.get('/admin-stats',verifyJWT,verifyAdmin, async (req, res) => {
+      const users = await usersCollection.estimatedDocumentCount()
+      const products = await menuCollection.estimatedDocumentCount()
+      const orders = await paymentCollection.estimatedDocumentCount()
+      // best way get sum of a field is to use group and some operator
+
+      // bangla system
+      const payments = await paymentCollection.find().toArray();
+      console.log(payments)
+      const revenue = payments.reduce( ( sum, payment) => sum + payment.price, 0)
+      console.log(revenue)
+    //todo fault in revenue
+      res.send({
+        revenue, 
+        users,
+        products,
+        orders
+      })
+    })
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
