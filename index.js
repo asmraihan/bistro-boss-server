@@ -225,6 +225,50 @@ async function run() {
       })
     })
 
+    /* bangle system 
+    1/ load all payment
+    2/ for each payment get the menu items array
+    3/ for each item in the menuItems array get the menu item from the menu collection
+    4/ put them all in an array: allOrderedItems
+    5/ separate allOrderedItems by category using filter
+    6/ now get the qunatity by using length: pizzas.length
+    7/ for each categry use useReduce to get the total ammount spent on this category
+  
+    
+    */
+    app.get('/orders-stats', async (req, res) => {
+      // write a pipeline
+      const pipeline = [
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'menuItems',
+            foreignField: '_id',
+            as: 'menuItemsData'
+          }
+        },
+        {
+          $unwind: '$menuItemsData'
+        },
+        {
+          $group: {
+            _id: '$menuItemsData.category',
+            count: { $sum: 1 },
+            total: { $sum: '$menuItemsData.price' }
+          }
+        },
+        {
+          $project: {
+            category: '$_id',
+            count: 1,
+            total: { $round: ['$total', 2] },
+            _id: 0
+          }
+        }
+      ]
+      const result = await paymentCollection.aggregate(pipeline).toArray()
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
